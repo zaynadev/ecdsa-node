@@ -1,7 +1,13 @@
 import { useState } from "react";
+import { sign } from "ethereum-cryptography/secp256k1";
+import { toHex, utf8ToBytes } from "ethereum-cryptography/utils";
+import { keccak256 } from "ethereum-cryptography/keccak";
 import server from "./server";
 
-function Transfer({ address, setBalance }) {
+const message = "alchemy-university";
+const HashedMessage = keccak256(utf8ToBytes(message));
+
+function Transfer({ address, setBalance, privateKey }) {
   const [sendAmount, setSendAmount] = useState("");
   const [recipient, setRecipient] = useState("");
 
@@ -9,11 +15,16 @@ function Transfer({ address, setBalance }) {
 
   async function transfer(evt) {
     evt.preventDefault();
-
+    const [sig, recoveryBit] = await sign(HashedMessage, privateKey, {
+      recovered: true,
+    });
     try {
       const {
         data: { balance },
       } = await server.post(`send`, {
+        HashedMessage: toHex(HashedMessage),
+        signature: toHex(sig),
+        recoveryBit,
         sender: address,
         amount: parseInt(sendAmount),
         recipient,
@@ -30,11 +41,7 @@ function Transfer({ address, setBalance }) {
 
       <label>
         Send Amount
-        <input
-          placeholder="1, 2, 3..."
-          value={sendAmount}
-          onChange={setValue(setSendAmount)}
-        ></input>
+        <input placeholder="1, 2, 3..." value={sendAmount} onChange={setValue(setSendAmount)}></input>
       </label>
 
       <label>
